@@ -1,0 +1,17 @@
+<?xml version="1" encoding="UTF-8"?>
+<!DOCTYPE gowin-fpga-project>
+<Project>
+    <Template>FPGA</Template>
+    <Version>5</Version>
+    <Device name="GW1NR-9C" pn="GW1NR-LV9QN88PC6/I5">gw1nr9c-004</Device>
+    <FileList>
+        <File path="src/adxl345.sv" type="file.verilog" enable="1"/>
+        <File path="src/debug_uart_tx.sv" type="file.verilog" enable="1"/>
+        <File path="src/hcsr04_controller_w_clk_divider.sv" type="file.verilog" enable="1"/>
+        <File path="src/i2c_arbiter.sv" type="file.verilog" enable="1"/>
+        <File path="src/i2c_master.sv" type="file.verilog" enable="1"/>
+        <File path="src/ssd1306_oled.sv" type="file.verilog" enable="1"/>
+        <File path="src/top_module.sv" type="file.verilog" enable="1"/>
+        <File path="src/constraint.cst" type="file.cst" enable="1"/>
+    </FileList>
+</Project>

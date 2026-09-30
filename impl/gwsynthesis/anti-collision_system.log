@@ -1,0 +1,46 @@
+GowinSynthesis start
+Running parser ...
+Analyzing Verilog file '/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/adxl345.sv'
+Analyzing Verilog file '/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/hcsr04_controller_w_clk_divider.sv'
+Analyzing Verilog file '/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_arbiter.sv'
+Analyzing Verilog file '/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_master.sv'
+Analyzing Verilog file '/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/ssd1306_oled.sv'
+Analyzing Verilog file '/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv'
+Undeclared symbol 'accel_raw', assumed default net type 'wire'("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv":47)
+Analyzing Verilog file '/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/debug_uart_tx.sv'
+Compiling module 'top_module'("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv":1)
+Compiling module 'hcsr04_controller'("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/hcsr04_controller_w_clk_divider.sv":1)
+Compiling module 'adxl345_top'("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/adxl345.sv":1)
+Compiling module 'i2c_master'("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_master.sv":1)
+WARN  (EX3670) : Actual bit length 1 differs from formal bit length 16 for port 'accel_raw'("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv":47)
+Compiling module 'debug_uart_tx'("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/debug_uart_tx.sv":1)
+WARN  (EX3791) : Expression size 16 truncated to fit in target size 4("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/debug_uart_tx.sv":56)
+WARN  (EX3791) : Expression size 14 truncated to fit in target size 4("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/debug_uart_tx.sv":58)
+WARN  (EX3791) : Expression size 10 truncated to fit in target size 4("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/debug_uart_tx.sv":60)
+WARN  (EX3791) : Expression size 7 truncated to fit in target size 4("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/debug_uart_tx.sv":62)
+WARN  (EX3791) : Expression size 8 truncated to fit in target size 4("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/debug_uart_tx.sv":66)
+WARN  (EX3791) : Expression size 7 truncated to fit in target size 4("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/debug_uart_tx.sv":67)
+WARN  (EX3791) : Expression size 7 truncated to fit in target size 4("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/debug_uart_tx.sv":71)
+WARN  (EX3670) : Actual bit length 1 differs from formal bit length 16 for port 'accel_raw'("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv":59)
+Compiling module 'ssd1306_oled'("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/ssd1306_oled.sv":1)
+Compiling module 'i2c_master(I2C_FREQ=400000)'("/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_master.sv":1)
+NOTE  (EX0101) : Current top module is "top_module"
+[5%] Running netlist conversion ...
+Running device independent optimization ...
+[10%] Optimizing Phase 0 completed
+[15%] Optimizing Phase 1 completed
+[25%] Optimizing Phase 2 completed
+Running inference ...
+[30%] Inferring Phase 0 completed
+[40%] Inferring Phase 1 completed
+[50%] Inferring Phase 2 completed
+[55%] Inferring Phase 3 completed
+Running technical mapping ...
+[60%] Tech-Mapping Phase 0 completed
+[65%] Tech-Mapping Phase 1 completed
+[75%] Tech-Mapping Phase 2 completed
+[80%] Tech-Mapping Phase 3 completed
+[90%] Tech-Mapping Phase 4 completed
+[95%] Generate netlist file "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/gwsynthesis/anti-collision_system.vg" completed
+[100%] Generate report file "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/gwsynthesis/anti-collision_system_syn.rpt.html" completed
+GowinSynthesis finish

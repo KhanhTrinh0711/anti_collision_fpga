@@ -1,0 +1,41 @@
+{
+ "Device" : "GW1NR-9C",
+ "Files" : [
+  {
+   "Path" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/adxl345.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/debug_uart_tx.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/hcsr04_controller_w_clk_divider.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_arbiter.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_master.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/ssd1306_oled.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv",
+   "Type" : "verilog"
+  }
+ ],
+ "IncludePath" : [
+
+ ],
+ "LoopLimit" : 2000,
+ "ResultFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/temp/rtl_parser.result",
+ "Top" : "",
+ "VerilogStd" : "verilog_2001",
+ "VhdlStd" : "vhdl_93"
+}

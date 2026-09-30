@@ -1,0 +1,82 @@
+[
+ {
+  "InstFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_arbiter.sv",
+  "InstLine" : 1,
+  "InstName" : "i2c_arbiter",
+  "ModuleFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_arbiter.sv",
+  "ModuleLine" : 1,
+  "ModuleName" : "i2c_arbiter",
+  "SubInsts" : [
+   {
+    "InstFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_arbiter.sv",
+    "InstLine" : 42,
+    "InstName" : "u_i2c",
+    "ModuleFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_master.sv",
+    "ModuleLine" : 1,
+    "ModuleName" : "i2c_master"
+   }
+  ]
+ },
+ {
+  "InstFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv",
+  "InstLine" : 1,
+  "InstName" : "top_module",
+  "ModuleFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv",
+  "ModuleLine" : 1,
+  "ModuleName" : "top_module",
+  "SubInsts" : [
+   {
+    "InstFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv",
+    "InstLine" : 20,
+    "InstName" : "u_hcsr04",
+    "ModuleFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/hcsr04_controller_w_clk_divider.sv",
+    "ModuleLine" : 1,
+    "ModuleName" : "hcsr04_controller"
+   },
+   {
+    "InstFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv",
+    "InstLine" : 37,
+    "InstName" : "u_adxl345",
+    "ModuleFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/adxl345.sv",
+    "ModuleLine" : 1,
+    "ModuleName" : "adxl345_top",
+    "SubInsts" : [
+     {
+      "InstFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/adxl345.sv",
+      "InstLine" : 48,
+      "InstName" : "u_i2c",
+      "ModuleFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_master.sv",
+      "ModuleLine" : 1,
+      "ModuleName" : "i2c_master"
+     }
+    ]
+   },
+   {
+    "InstFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv",
+    "InstLine" : 51,
+    "InstName" : "u_debug",
+    "ModuleFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/debug_uart_tx.sv",
+    "ModuleLine" : 1,
+    "ModuleName" : "debug_uart_tx"
+   },
+   {
+    "InstFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv",
+    "InstLine" : 98,
+    "InstName" : "u_oled",
+    "ModuleFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/ssd1306_oled.sv",
+    "ModuleLine" : 1,
+    "ModuleName" : "ssd1306_oled",
+    "SubInsts" : [
+     {
+      "InstFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/ssd1306_oled.sv",
+      "InstLine" : 51,
+      "InstName" : "u_oled_i2c",
+      "ModuleFile" : "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_master.sv",
+      "ModuleLine" : 1,
+      "ModuleName" : "i2c_master"
+     }
+    ]
+   }
+  ]
+ }
+]
