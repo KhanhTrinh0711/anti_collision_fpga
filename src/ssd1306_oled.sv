@@ -13,7 +13,7 @@ module ssd1306_oled (
     localparam OLED_ADDR = 7'h3C;
 
     // Mỗi lệnh SSD1306 = 2 byte: [0x00][CMD]
-    // Tổng 25 lệnh × 2 byte = 50 transactions
+    // Tổng 25 lệnh × 2 byte = 50 byte
     // init_step chạy từ 0 đến 49
     // step chẵn (0,2,4...) → gửi 0x00 (control byte)
     // step lẻ  (1,3,5...) → gửi CMD tương ứng
@@ -29,6 +29,10 @@ module ssd1306_oled (
     localparam S_SEND_DATA   = 4'd7;
     localparam S_SEND_DATA_W = 4'd8;
     localparam S_NEXT        = 4'd9;
+    localparam S_SET_COL_LOW_W  = 4'd10;
+    localparam S_SET_COL_HIGH_W = 4'd11;
+    localparam S_SEND_PIXEL     = 4'd12;
+    localparam S_SEND_PIXEL_W   = 4'd13;
 
     reg [3:0] state;
     reg [5:0] init_step;
@@ -80,7 +84,7 @@ module ssd1306_oled (
             5'd8:  init_cmd = 8'h8D; // Charge pump
             5'd9:  init_cmd = 8'h14; // Enable
             5'd10: init_cmd = 8'h20; // Memory mode
-            5'd11: init_cmd = 8'h00; // Horizontal
+            5'd11: init_cmd = 8'h02; // Page addressing mode
             5'd12: init_cmd = 8'hA1; // Segment remap
             5'd13: init_cmd = 8'hC8; // COM scan dir
             5'd14: init_cmd = 8'hDA; // COM pins
@@ -303,40 +307,70 @@ module ssd1306_oled (
                 S_SET_COL_W: begin
                     m_ena <= 1'b0;
                     if (prev_busy && !m_busy) begin
-                        // col low nibble
                         m_addr    <= OLED_ADDR;
                         m_rw      <= 1'b0;
-                        m_data_wr <= 8'h00 | (col & 7'h0F);
+                        m_data_wr <= {4'b0, col[3:0]};
                         m_stop    <= 1'b0;
                         m_ena     <= 1'b1;
-                        state     <= S_SEND_DATA;
+                        state     <= S_SET_COL_LOW_W;
                     end
                 end
 
-                // ── Send data: [0x40][data × 128] ─────────────────
-                S_SEND_DATA: begin
+                S_SET_COL_LOW_W: begin
                     m_ena <= 1'b0;
                     if (prev_busy && !m_busy) begin
                         m_addr    <= OLED_ADDR;
                         m_rw      <= 1'b0;
-                        // col=0: gửi control byte 0x40 (data mode)
-                        // col>0: gửi pixel data
-                        m_data_wr <= (col == 7'd0) ? 8'h40
-                                                   : fbuf[page][col-1];
-                        m_stop    <= (col == 7'd127) ? 1'b1 : 1'b0;
+                        m_data_wr <= 8'h10 | {4'b0, col[6:4]};
+                        m_stop    <= 1'b1;
                         m_ena     <= 1'b1;
-                        state     <= S_SEND_DATA_W;
+                        state     <= S_SET_COL_HIGH_W;
                     end
+                end
+
+                S_SET_COL_HIGH_W: begin
+                    m_ena <= 1'b0;
+                    if (prev_busy && !m_busy) begin
+                        col   <= 7'd0;
+                        state <= S_SEND_DATA;
+                    end
+                end
+
+                S_SEND_DATA: begin
+                    m_addr    <= OLED_ADDR;
+                    m_rw      <= 1'b0;
+                    m_data_wr <= 8'h40;
+                    m_stop    <= 1'b0;
+                    m_ena     <= 1'b1;
+                    state     <= S_SEND_DATA_W;
                 end
 
                 S_SEND_DATA_W: begin
                     m_ena <= 1'b0;
                     if (prev_busy && !m_busy) begin
+                        col   <= 7'd0;
+                        state <= S_SEND_PIXEL;
+                    end
+                end
+
+                S_SEND_PIXEL: begin
+                    m_addr    <= OLED_ADDR;
+                    m_rw      <= 1'b0;
+                    m_data_wr <= fbuf[page][col];
+                    m_stop    <= (col == 7'd127);
+                    m_ena     <= 1'b1;
+                    state     <= S_SEND_PIXEL_W;
+                end
+
+                S_SEND_PIXEL_W: begin
+                    m_ena <= 1'b0;
+                    if (prev_busy && !m_busy) begin
                         if (col < 7'd127) begin
                             col   <= col + 1'b1;
-                            state <= S_SEND_DATA;
-                        end else
+                            state <= S_SEND_PIXEL;
+                        end else begin
                             state <= S_NEXT;
+                        end
                     end
                 end
 

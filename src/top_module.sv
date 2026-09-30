@@ -33,6 +33,7 @@ module top_module (
     wire [7:0] steer_angle;
     wire       steer_sign;
     wire       steer_valid;
+    wire [15:0] accel_raw;
 
     adxl345_top u_adxl345 (
         .clk              (clk),

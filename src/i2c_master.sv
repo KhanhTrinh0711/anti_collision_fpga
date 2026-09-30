@@ -8,7 +8,7 @@
     input  wire [6:0] addr,        
     input  wire       rw,          
     input  wire [7:0] data_wr,     
-    input  wire       stop,     
+    input  wire       stop,     // Emit STOP after this byte; 0 continues the current transfer.
 
     output reg        busy,    
     output reg  [7:0] data_rd,      
@@ -18,7 +18,7 @@
     inout  wire       sda
 );
 
-    localparam DIVIDER = CLK_FREQ / (I2C_FREQ * 4);
+    localparam DIVIDER = (CLK_FREQ + (I2C_FREQ * 4) - 1) / (I2C_FREQ * 4);
 
     localparam STATE_IDLE    = 4'd0;
     localparam STATE_START   = 4'd1;
@@ -37,6 +37,7 @@
     reg [7:0]  saved_addr_rw;
     reg [7:0]  saved_data;
     reg        saved_stop;
+    reg        bus_active;
     
     reg scl_enable;
     reg sda_enable; 
@@ -74,18 +75,25 @@
             saved_addr_rw <= 8'd0;
             saved_data    <= 8'd0;
             saved_stop    <= 1'b0;
+            bus_active    <= 1'b0;
         end else begin
             case (state)
                 STATE_IDLE: begin
-                    scl_enable <= 1'b0;
-                    sda_enable <= 1'b0; 
+                    scl_enable <= bus_active;
+                    sda_enable <= 1'b0;
                     if (ena) begin
                         busy          <= 1'b1;
                         saved_addr_rw <= {addr, rw};
                         saved_data    <= data_wr;
                         saved_stop    <= stop;
-                        ack_error     <= 1'b0;
-                        state         <= STATE_START;
+                        if (!bus_active)
+                            ack_error <= 1'b0;
+                        if (bus_active) begin
+                            bit_idx <= 3'd7;
+                            state   <= rw ? STATE_READ : STATE_WRITE;
+                        end else begin
+                            state <= STATE_START;
+                        end
                     end else begin
                         busy <= 1'b0;
                     end
@@ -173,10 +181,13 @@
                             end
                             2'd3: begin
                                 scl_enable <= 1'b1;
-                                if (saved_stop)
+                                if (saved_stop) begin
+                                    bus_active <= 1'b0;
                                     state <= STATE_STOP;
-                                else
+                                end else begin
+                                    bus_active <= 1'b1;
                                     state <= STATE_IDLE;
+                                end
                             end
                         endcase
                     end
@@ -203,12 +214,18 @@
                 STATE_MSTR_ACK: begin
                     if (cycle_pulse) begin
                         case (phase)
-                            2'd0: sda_enable <= 1'b0; 
+                            2'd0: sda_enable <= ~saved_stop;
                             2'd1: scl_enable <= 1'b0;
                             2'd2: scl_enable <= 1'b0;
                             2'd3: begin
                                 scl_enable <= 1'b1;
-                                state      <= STATE_STOP;
+                                if (saved_stop) begin
+                                    bus_active <= 1'b0;
+                                    state      <= STATE_STOP;
+                                end else begin
+                                    bus_active <= 1'b1;
+                                    state      <= STATE_IDLE;
+                                end
                             end
                         endcase
                     end
@@ -223,6 +240,7 @@
                             2'd3: begin
                                 busy  <= 1'b0;
                                 state <= STATE_IDLE;
+                                bus_active <= 1'b0;
                             end
                         endcase
                     end

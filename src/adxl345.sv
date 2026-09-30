@@ -155,7 +155,7 @@ module adxl345_top (
                 S_READ_LOW: begin
                     i2c_addr <= ADXL_ADDR;
                     i2c_rw   <= 1'b1;
-                    i2c_stop <= 1'b1;
+                    i2c_stop <= 1'b0;
                     i2c_ena  <= 1'b1;
                     state    <= S_READ_LOW_W;
                 end
