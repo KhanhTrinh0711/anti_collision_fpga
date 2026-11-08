@@ -1,4 +1,7 @@
-module hcsr04_controller (
+module hcsr04_controller #(
+    parameter TIMEOUT_US = 16'd38000,
+    parameter MEAS_PERIOD = 21'd1_620_000
+) (
     input  wire        clk_27m,
     input  wire        rst_n,
     input  wire        echo_pin,
@@ -7,9 +10,9 @@ module hcsr04_controller (
     output reg         valid,
     output reg         timeout
 );
-    localparam TIMEOUT_US  = 16'd38000;
-    localparam TRIG_US     = 4'd10;
-    localparam MEAS_PERIOD = 20'd540000;
+    // Datasheet minimum is 10 us; exactly 10 us leaves no margin on clone modules.
+    localparam TRIG_US     = 5'd20;
+    // Keep at least 60 ms between ultrasonic bursts.
 
     localparam IDLE      = 3'd0;
     localparam TRIGGER   = 3'd1;
@@ -27,36 +30,53 @@ module hcsr04_controller (
 
     always @(posedge clk_27m or negedge rst_n) begin
         if (!rst_n)        cnt_1us <= 5'd0;
-        else if (tick_1us) cnt_1us <= 5'd0;
+        else if (state == IDLE || tick_1us) cnt_1us <= 5'd0;
         else               cnt_1us <= cnt_1us + 1'b1;
     end
 
-    reg [19:0] period_cnt;
+    reg [20:0] period_cnt;
     wire period_done = (period_cnt == MEAS_PERIOD - 1);
 
     always @(posedge clk_27m or negedge rst_n) begin
         if (!rst_n)
-            period_cnt <= 20'd0;
+            period_cnt <= 21'd0;
         else if (state == IDLE) begin
-            if (period_done) period_cnt <= 20'd0;
+            if (period_done) period_cnt <= 21'd0;
             else             period_cnt <= period_cnt + 1'b1;
         end else
-            period_cnt <= 20'd0;
+            period_cnt <= 21'd0;
     end
 
-    reg [3:0] trig_cnt;
+    reg [4:0] trig_cnt;
     wire trig_done = (trig_cnt == TRIG_US - 1);
 
     always @(posedge clk_27m or negedge rst_n) begin
         if (!rst_n)
-            trig_cnt <= 4'd0;
+            trig_cnt <= 5'd0;
         else if (state == TRIGGER) begin
             if (tick_1us) trig_cnt <= trig_cnt + 1'b1;
         end else
-            trig_cnt <= 4'd0;
+            trig_cnt <= 5'd0;
     end
 
     reg [15:0] echo_time_us;
+    reg echo_meta, echo_sync;
+    reg [15:0] wait_time_us;
+
+    always @(posedge clk_27m or negedge rst_n) begin
+        if (!rst_n) begin
+            echo_meta <= 1'b0;
+            echo_sync <= 1'b0;
+            wait_time_us <= 16'd0;
+        end else begin
+            echo_meta <= echo_pin;
+            echo_sync <= echo_meta;
+            if (state != WAIT_ECHO)
+                wait_time_us <= 16'd0;
+            else if (tick_1us && wait_time_us < TIMEOUT_US)
+                wait_time_us <= wait_time_us + 1'b1;
+        end
+    end
 
     always @(posedge clk_27m or negedge rst_n) begin
         if (!rst_n)
@@ -75,6 +95,10 @@ module hcsr04_controller (
     always @(posedge clk_27m or negedge rst_n) begin
         if (!rst_n)
             timeout_flag <= 1'b0;
+        else if (state == TRIGGER)
+            timeout_flag <= 1'b0;
+        else if (state == WAIT_ECHO && wait_time_us >= TIMEOUT_US)
+            timeout_flag <= 1'b1;
         else if (state == COUNTING) begin
             if (echo_time_us >= TIMEOUT_US)
                 timeout_flag <= 1'b1;
@@ -89,7 +113,7 @@ module hcsr04_controller (
         if (!rst_n)
             raw_cm <= 16'd0;
         else if (state == CALCULATE)
-            raw_cm <= (({16'd0, echo_time_us} * 32'd9) >> 9);
+            raw_cm <= echo_time_us / 16'd58;
     end
 
     // ─── Moving average — khởi tạo bằng giá trị đầu tiên ────────
@@ -136,7 +160,18 @@ module hcsr04_controller (
             case (state)
                 IDLE: begin
                     trig_pin <= 1'b0;
-                    if (period_done) state <= TRIGGER;
+                    if (period_done) begin
+                        if (echo_sync) begin
+                            // Echo still high from the last burst: a new
+                            // trigger would measure that stale pulse.
+                            timeout     <= 1'b1;
+                            distance_cm <= 16'd0;
+                            valid       <= 1'b1;
+                        end else begin
+                            trig_pin <= 1'b1;
+                            state <= TRIGGER;
+                        end
+                    end
                 end
 
                 TRIGGER: begin
@@ -149,11 +184,13 @@ module hcsr04_controller (
 
                 WAIT_ECHO: begin
                     trig_pin <= 1'b0;
-                    if (echo_pin) state <= COUNTING;
+                    if (echo_sync) state <= COUNTING;
+                    else if (wait_time_us >= TIMEOUT_US)
+                        state <= CALCULATE;
                 end
 
                 COUNTING: begin
-                    if (!echo_pin || echo_time_us >= TIMEOUT_US)
+                    if (!echo_sync || echo_time_us >= TIMEOUT_US)
                         state <= CALCULATE;
                 end
 

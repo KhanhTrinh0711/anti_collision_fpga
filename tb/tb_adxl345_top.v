@@ -13,6 +13,8 @@ module tb_adxl345_top;
     wire [6:0] danger_threshold;
     wire [7:0] steer_angle;
     wire       steer_sign;
+    wire [7:0] y_angle;
+    wire       y_sign;
     wire       valid;
 
     // Trở kéo pull-up cho bus I2C (Tri-state)
@@ -22,15 +24,34 @@ module tb_adxl345_top;
     // -------------------------------------------------------------
     // 1. Khởi tạo DUT (adxl345_top)
     // -------------------------------------------------------------
+    wire       i2c_ena, i2c_rw, i2c_stop, i2c_busy, i2c_ack_err, i2c_bus_active;
+    wire [6:0] i2c_addr;
+    wire [7:0] i2c_data_wr, i2c_data_rd;
+
+    i2c_master u_i2c (
+        .clk(clk), .rst_n(rst_n), .ena(i2c_ena), .addr(i2c_addr), .rw(i2c_rw),
+        .data_wr(i2c_data_wr), .stop(i2c_stop), .busy(i2c_busy),
+        .data_rd(i2c_data_rd), .ack_error(i2c_ack_err),
+        .bus_active(i2c_bus_active), .scl(scl), .sda(sda)
+    );
+
     adxl345_top u_dut (
         .clk              (clk),
         .rst_n            (rst_n),
-        .scl              (scl),
-        .sda              (sda),
+        .i2c_ena          (i2c_ena),
+        .i2c_addr         (i2c_addr),
+        .i2c_rw           (i2c_rw),
+        .i2c_data_wr      (i2c_data_wr),
+        .i2c_stop         (i2c_stop),
+        .i2c_busy         (i2c_busy),
+        .i2c_data_rd      (i2c_data_rd),
+        .i2c_ack_err      (i2c_ack_err),
         .steer_dir        (steer_dir),
         .danger_threshold (danger_threshold),
         .steer_angle      (steer_angle),
         .steer_sign       (steer_sign),
+        .y_angle          (y_angle),
+        .y_sign           (y_sign),
         .valid            (valid)
     );
 
@@ -47,6 +68,8 @@ module tb_adxl345_top;
     // -------------------------------------------------------------
     reg [7:0] sim_accel_x_low;
     reg [7:0] sim_accel_x_high;
+    reg [7:0] sim_accel_y_low;
+    reg [7:0] sim_accel_y_high;
 
     reg sda_slave_out;
     reg sda_slave_en;
@@ -54,13 +77,15 @@ module tb_adxl345_top;
 
     reg [7:0] rx_byte;
     reg [7:0] curr_reg;
-    reg [2:0] bit_cnt;
+    integer bit_cnt;
 
     initial begin
         sda_slave_en     = 1'b0;
         sda_slave_out    = 1'b0;
         sim_accel_x_low  = 8'h00;
         sim_accel_x_high = 8'h00;
+        sim_accel_y_low  = 8'h00;
+        sim_accel_y_high = 8'h00;
     end
 
     // Task nhận 1 byte từ Master và gửi ACK
@@ -86,15 +111,15 @@ module tb_adxl345_top;
         input [7:0] data;
         begin
             for (bit_cnt = 7; bit_cnt >= 0; bit_cnt = bit_cnt - 1) begin
-                @(negedge scl);
-                sda_slave_out = data[bit_cnt];
-                sda_slave_en  = 1'b1;
+                sda_slave_out = 1'b0;
+                sda_slave_en = !data[bit_cnt];
                 @(posedge scl);
+                @(negedge scl);
             end
             // Thả SDA để nhận ACK/NACK từ Master
-            @(negedge scl);
-            sda_slave_en  = 1'b0;
+            sda_slave_en = 1'b0;
             @(posedge scl);
+            @(negedge scl);
         end
     endtask
 
@@ -106,19 +131,18 @@ module tb_adxl345_top;
 
             if (rx_byte[7:1] == 7'h53) begin // Địa chỉ ADXL345: 0x53
                 if (rx_byte[0] == 1'b0) begin
-                    // Lệnh Ghi: lưu địa chỉ thanh ghi hoặc cấu hình
                     i2c_recv_byte(rx_byte);
                     curr_reg = rx_byte;
-                end else begin
-                    // Lệnh Đọc: xuất dữ liệu theo địa chỉ thanh ghi hiện tại
-                    if (curr_reg == 8'h32) begin
-                        i2c_send_byte(sim_accel_x_low);
-                        curr_reg = 8'h33; // Tự động tăng sang byte cao
-                    end else if (curr_reg == 8'h33) begin
-                        i2c_send_byte(sim_accel_x_high);
-                    end else begin
-                        i2c_send_byte(8'h00);
+                    if (curr_reg == 8'h2D) begin
+                        i2c_recv_byte(rx_byte);
+                        if (rx_byte !== 8'h08) $fatal(1, "Invalid POWER_CTL");
                     end
+                end else begin
+                    if (curr_reg !== 8'h32) $fatal(1, "Invalid data register");
+                    i2c_send_byte(sim_accel_x_low);
+                    i2c_send_byte(sim_accel_x_high);
+                    i2c_send_byte(sim_accel_y_low);
+                    i2c_send_byte(sim_accel_y_high);
                 end
             end
         end
@@ -129,7 +153,7 @@ module tb_adxl345_top;
     // -------------------------------------------------------------
     initial begin
         // Thiết lập dump sóng cho GTKWave
-        $dumpfile("simulation/tb_adxl345.vcd");
+        $dumpfile("tb_adxl345.vcd");
         $dumpvars(0, tb_adxl345_top);
 
         // Khởi tạo trạng thái ban đầu
@@ -147,6 +171,7 @@ module tb_adxl345_top;
         sim_accel_x_high = 8'h00;
         @(posedge valid);
         #10;
+        if (steer_dir !== 0 || danger_threshold !== 20 || steer_angle !== 0 || steer_sign !== 0) $fatal(1, "Scenario 1 failed");
         $display("[TEST 1 - DI THANG] Ax=0    | Dir=%b | Thresh=%0d cm | Angle=%0d deg | Sign=%b", 
                  steer_dir, danger_threshold, steer_angle, steer_sign);
 
@@ -155,6 +180,7 @@ module tb_adxl345_top;
         sim_accel_x_high = 8'h00;
         @(posedge valid);
         #10;
+        if (steer_dir !== 2 || danger_threshold !== 40 || steer_angle !== 45 || steer_sign !== 0) $fatal(1, "Scenario 2 failed");
         $display("[TEST 2 - RE PHAI ] Ax=+128 | Dir=%b | Thresh=%0d cm | Angle=%0d deg | Sign=%b", 
                  steer_dir, danger_threshold, steer_angle, steer_sign);
 
@@ -163,6 +189,7 @@ module tb_adxl345_top;
         sim_accel_x_high = 8'hFF;
         @(posedge valid);
         #10;
+        if (steer_dir !== 1 || danger_threshold !== 40 || steer_angle !== 45 || steer_sign !== 1) $fatal(1, "Scenario 3 failed");
         $display("[TEST 3 - RE TRAI ] Ax=-128 | Dir=%b | Thresh=%0d cm | Angle=%0d deg | Sign=%b", 
                  steer_dir, danger_threshold, steer_angle, steer_sign);
 
@@ -171,9 +198,25 @@ module tb_adxl345_top;
         sim_accel_x_high = 8'h00;
         @(posedge valid);
         #10;
+        if (steer_dir !== 0 || danger_threshold !== 20 || steer_angle !== 10 || steer_sign !== 0) $fatal(1, "Scenario 4 failed");
         $display("[TEST 4 - LAC NHE ] Ax=+30  | Dir=%b | Thresh=%0d cm | Angle=%0d deg | Sign=%b", 
                  steer_dir, danger_threshold, steer_angle, steer_sign);
 
+        sim_accel_x_low = 8'h00;
+        sim_accel_x_high = 8'h02;
+        @(posedge valid); #10;
+        if (steer_angle !== 90) $fatal(1, "Positive saturation failed");
+        sim_accel_x_high = 8'h80;
+        @(posedge valid); #10;
+        if (steer_angle !== 90 || steer_sign !== 1)
+            $fatal(1, "Negative saturation failed");
+
+        // Trục Y: Ay = -128 LSB (0xFF80) ~ -45 độ, X không đổi
+        sim_accel_y_low  = 8'h80;
+        sim_accel_y_high = 8'hFF;
+        @(posedge valid); #10;
+        if (y_angle !== 45 || y_sign !== 1 || steer_angle !== 90)
+            $fatal(1, "Y axis angle failed");
         #1000;
         $display("==========================================================");
         $display("                MO PHONG HOAN TAT THANH CONG              ");
@@ -181,4 +224,8 @@ module tb_adxl345_top;
         $finish;
     end
 
+    initial begin
+        #20_000_000;
+        $fatal(1, "ADXL345 timeout");
+    end
 endmodule

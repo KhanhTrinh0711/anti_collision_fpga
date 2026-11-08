@@ -4,21 +4,28 @@
     <Version>beta</Version>
     <Device id="GW1NR-9C" package="QFN88P" speed="6" partNumber="GW1NR-LV9QN88PC6/I5"/>
     <FileList>
-        <File path="/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/adxl345.sv" type="verilog"/>
-        <File path="/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/hcsr04_controller_w_clk_divider.sv" type="verilog"/>
-        <File path="/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_arbiter.sv" type="verilog"/>
-        <File path="/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/i2c_master.sv" type="verilog"/>
-        <File path="/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/ssd1306_oled.sv" type="verilog"/>
-        <File path="/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/top_module.sv" type="verilog"/>
-        <File path="/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/debug_uart_tx.sv" type="verilog"/>
+        <File path="/home/trinh/projects/FPGA/anti_collision_fpga/src/adxl345.sv" type="verilog"/>
+        <File path="/home/trinh/projects/FPGA/anti_collision_fpga/src/hcsr04_measure.sv" type="verilog"/>
+        <File path="/home/trinh/projects/FPGA/anti_collision_fpga/src/i2c_arbiter.sv" type="verilog"/>
+        <File path="/home/trinh/projects/FPGA/anti_collision_fpga/src/i2c_master.sv" type="verilog"/>
+        <File path="/home/trinh/projects/FPGA/anti_collision_fpga/src/ssd1306_oled.sv" type="verilog"/>
+        <File path="/home/trinh/projects/FPGA/anti_collision_fpga/src/top_module.sv" type="verilog"/>
     </FileList>
     <OptionList>
         <Option type="disable_insert_pad" value="0"/>
+        <Option type="dsp_style" value="auto"/>
         <Option type="global_freq" value="50.000"/>
         <Option type="looplimit" value="2000"/>
-        <Option type="output_file" value="/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/gwsynthesis/anti-collision_system.vg"/>
+        <Option type="map_option" value="1"/>
+        <Option type="max_fanout" value="1000"/>
+        <Option type="netlist_hierarchy" value="1"/>
+        <Option type="opt_goal" value="auto"/>
+        <Option type="output_file" value="/home/trinh/projects/FPGA/anti_collision_fpga/impl/gwsynthesis/anti-collision_system.vg"/>
         <Option type="print_all_synthesis_warning" value="0"/>
         <Option type="ram_rw_check" value="0"/>
+        <Option type="ram_style" value="auto"/>
+        <Option type="rom_style" value="auto"/>
+        <Option type="shift_reg" value="auto"/>
         <Option type="vcc" value="1.2"/>
         <Option type="verilog_language" value="verilog-2001"/>
         <Option type="vhdl_language" value="vhdl-1993"/>

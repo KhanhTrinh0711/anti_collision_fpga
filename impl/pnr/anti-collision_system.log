@@ -1,13 +1,12 @@
-Reading netlist file: "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/gwsynthesis/anti-collision_system.vg"
-Parsing netlist file "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/gwsynthesis/anti-collision_system.vg" completed
+Reading netlist file: "/home/trinh/projects/FPGA/anti_collision_fpga/impl/gwsynthesis/anti-collision_system.vg"
+Parsing netlist file "/home/trinh/projects/FPGA/anti_collision_fpga/impl/gwsynthesis/anti-collision_system.vg" completed
 Processing netlist completed
-Reading constraint file: "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/constraint.cst"
+Reading constraint file: "/home/trinh/projects/FPGA/anti_collision_fpga/src/constraint.cst"
 Physical Constraint parsed completed
 Running placement......
 [10%] Placement Phase 0 completed
 [20%] Placement Phase 1 completed
 [30%] Placement Phase 2 completed
-WARN  (TA1132) :  'clk' was determined to be a clock but was not created.
 [50%] Placement Phase 3 completed
 Running routing......
 [60%] Routing Phase 0 completed
@@ -21,10 +20,11 @@ Bitstream generation in progress......
 Bitstream generation completed
 Running power analysis......
 [100%] Power analysis completed
-Generate file "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/pnr/anti-collision_system.power.html" completed
-Generate file "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/pnr/anti-collision_system.pin.html" completed
-Generate file "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/pnr/anti-collision_system.rpt.html" completed
-Generate file "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/pnr/anti-collision_system.rpt.txt" completed
-Generate file "/home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/pnr/anti-collision_system.tr.html" completed
-Sat Sep 19 14:21:49 2026
+Generate file "/home/trinh/projects/FPGA/anti_collision_fpga/impl/pnr/anti-collision_system.power.html" completed
+Generate file "/home/trinh/projects/FPGA/anti_collision_fpga/impl/pnr/anti-collision_system.pin.html" completed
+Generate file "/home/trinh/projects/FPGA/anti_collision_fpga/impl/pnr/anti-collision_system.rpt.html" completed
+Generate file "/home/trinh/projects/FPGA/anti_collision_fpga/impl/pnr/anti-collision_system.rpt.txt" completed
+Generate file "/home/trinh/projects/FPGA/anti_collision_fpga/impl/pnr/anti-collision_system.tr.html" completed
+Generate file "/home/trinh/projects/FPGA/anti_collision_fpga/impl/pnr/anti-collision_system.tr" completed
+Sun Nov  8 18:56:19 2026
 

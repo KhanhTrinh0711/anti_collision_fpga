@@ -1,235 +1,208 @@
+// HC-SR04 x4 + ADXL345 + OLED build. Full system (ADXL345 + OLED + buzzer): top_module_full.sv.bak
 module top_module (
-    input  wire clk,
-    input  wire rst_n,
-    input  wire echo_pin,
-    output wire trig_pin,
-    inout  wire scl,        
-    inout  wire sda,
-    inout  wire oled_scl,   
-    inout  wire oled_sda,
-    output wire ext_led,
-    output wire steer_led,
-    output wire buzzer,
-    output wire uart_tx_debug
+    input  wire       clk,
+    input  wire       rst_n,
+    input  wire [3:0] echo_pin,     // [i] = HC-SR04_(i+1), numbered left to right
+    output wire [3:0] trig_pin,
+    inout  wire       scl,          // shared I2C: ADXL345 (0x53) + SSD1306 (0x3C)
+    inout  wire       sda,
+    output wire       hcsr04_led,
+    output wire       buzzer
 );
-    // ─── HC-SR04 ──────────────────────────────────────────────────
-    wire [15:0] distance_cm;
-    wire        dist_valid;
-    wire        dist_timeout;
+    // ─── HC-SR04 x4 ───────────────────────────────────────────────
+    // Pulses < 2 cm are ignored as noise; >400 cm, missing or stuck ECHO
+    // give sample_valid=0.
+    wire [3:0]  dist_valid;     // one-cycle pulse per measurement
+    wire [3:0]  sample_valid;
+    wire [35:0] distance_cm;    // sensor i at [i*9 +: 9]
 
-    hcsr04_controller u_hcsr04 (
-        .clk_27m    (clk),
-        .rst_n      (rst_n),
-        .echo_pin   (echo_pin),
-        .trig_pin   (trig_pin),
-        .distance_cm(distance_cm),
-        .valid      (dist_valid),
-        .timeout    (dist_timeout)
-    );
+    genvar s;
+    generate
+        for (s = 0; s < 4; s = s + 1) begin : g_hcsr04
+            hcsr04_measure #(.CLK_FREQ_HZ(27_000_000)) u_hcsr04 (
+                .clk              (clk),
+                .rst_n            (rst_n),
+                .echo             (echo_pin[s]),
+                .trig             (trig_pin[s]),
+                .sample_done      (dist_valid[s]),
+                .sample_valid     (sample_valid[s]),
+                .error_code       (),
+                .echo_width_cycles(),
+                .echo_width_us    (),
+                .distance_cm      (distance_cm[s*9 +: 9])
+            );
+        end
+    endgenerate
 
-    // ─── ADXL345 ──────────────────────────────────────────────────
-    wire [1:0] steer_dir;
-    wire [6:0] danger_threshold;
-    wire [7:0] steer_angle;
-    wire       steer_sign;
-    wire       steer_valid;
-    wire [15:0] accel_raw;
+    // ─── Warning zone per sensor ──────────────────────────────────
+    // 0: >20 cm / invalid -> off, 1: 10-20 cm -> 0.5 Hz,
+    // 2: 5-9 cm -> 1 Hz,          3: <5 cm -> 10 Hz
+    function [1:0] dist_zone;
+        input       valid;
+        input [8:0] d;
+        begin
+            if (!valid || d > 9'd20) dist_zone = 2'd0;
+            else if (d >= 9'd10)     dist_zone = 2'd1;
+            else if (d >= 9'd5)      dist_zone = 2'd2;
+            else                     dist_zone = 2'd3;
+        end
+    endfunction
 
-    adxl345_top u_adxl345 (
-        .clk              (clk),
-        .rst_n            (rst_n),
-        .scl              (scl),
-        .sda              (sda),
-        .steer_dir        (steer_dir),
-        .danger_threshold (danger_threshold),
-        .steer_angle      (steer_angle),
-        .steer_sign       (steer_sign),
-        .valid            (steer_valid),
-        .accel_raw        (accel_raw)
-    );
-
-    //─── UART ─────────────────────────────────────────────────────
-    debug_uart_tx u_debug (
-        .clk              (clk),
-        .rst_n            (rst_n),
-        .valid            (steer_valid),
-        .steer_dir        (steer_dir),
-        .steer_angle      (steer_angle),
-        .steer_sign       (steer_sign),
-        .danger_threshold (danger_threshold),
-        .accel_raw        (accel_raw),
-        .uart_tx          (uart_tx_debug)
-    );
-
-    // ─── Zone từ HC-SR04 ──────────────────────────────────────────
-    reg [1:0] zone;
+    reg [7:0] sensor_zone;      // sensor i at [i*2 +: 2]
+    integer   z;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
-            zone <= 2'd0;
-        else if (dist_valid) begin
-            if (dist_timeout || distance_cm > 16'd50)
-                zone <= 2'd0;
-            else if (distance_cm > 16'd20)
-                zone <= 2'd1;
-            else if (distance_cm > 16'd10)
-                zone <= 2'd2;
-            else
-                zone <= 2'd3;
-        end
+            sensor_zone <= 8'd0;
+        else
+            for (z = 0; z < 4; z = z + 1)
+                if (dist_valid[z])
+                    sensor_zone[z*2 +: 2] <= dist_zone(sample_valid[z],
+                                                       distance_cm[z*9 +: 9]);
     end
 
-    // ─── Detect zone thay đổi ────────────────────────────────────
+    // OLED "!" per sensor; the most urgent sensor drives LED + buzzer.
+    wire [3:0] obstacle = {|sensor_zone[7:6], |sensor_zone[5:4],
+                           |sensor_zone[3:2], |sensor_zone[1:0]};
+    wire [1:0] zone_01  = (sensor_zone[1:0] > sensor_zone[3:2]) ?
+                          sensor_zone[1:0] : sensor_zone[3:2];
+    wire [1:0] zone_23  = (sensor_zone[5:4] > sensor_zone[7:6]) ?
+                          sensor_zone[5:4] : sensor_zone[7:6];
+    wire [1:0] zone     = (zone_01 > zone_23) ? zone_01 : zone_23;
+
     reg [1:0] zone_prev;
     wire      zone_changed = (zone != zone_prev);
 
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) 
+        if (!rst_n)
             zone_prev <= 2'd0;
-        else        
+        else
             zone_prev <= zone;
     end
 
-    // ─── OLED ─────────────────────────────────────────────────────
-    wire rear_left_alert  = (zone >= 2'd1);
-    wire rear_right_alert = 1'b0;
-    wire side_left_alert  = 1'b0;
-    wire side_right_alert = 1'b0;
+    // ─── Shared LED/buzzer blink: 10 Hz / 1 Hz / 0.5 Hz ───────────
+    reg [24:0] blink_half;      // half period in 27 MHz cycles
+
+    always @(*) begin
+        case (zone)
+            2'd3:    blink_half = 25'd1_350_000;    // 10 Hz, 0.1 s period
+            2'd2:    blink_half = 25'd13_500_000;   // 1 Hz, 1 s period
+            default: blink_half = 25'd27_000_000;   // 0.5 Hz, 2 s period
+        endcase
+    end
+
+    reg [24:0] blink_cnt;
+    reg        blink_on;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            blink_cnt <= 25'd0;
+            blink_on  <= 1'b0;
+        end else if (zone == 2'd0) begin
+            blink_cnt <= 25'd0;
+            blink_on  <= 1'b0;
+        end else if (zone_changed) begin
+            // Each new level starts ON so the warning is immediate.
+            blink_cnt <= 25'd0;
+            blink_on  <= 1'b1;
+        end else if (blink_cnt >= blink_half - 1'b1) begin
+            blink_cnt <= 25'd0;
+            blink_on  <= ~blink_on;
+        end else
+            blink_cnt <= blink_cnt + 1'b1;
+    end
+
+    // ─── Buzzer tone 2 kHz (passive buzzer, as in full design) ────
+    localparam BUZ_HALF = 14'd6750;
+    reg [13:0] buz_pwm_cnt;
+    reg        buz_pwm;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            buz_pwm_cnt <= 14'd0;
+            buz_pwm     <= 1'b0;
+        end else if (buz_pwm_cnt >= BUZ_HALF - 1) begin
+            buz_pwm_cnt <= 14'd0;
+            buz_pwm     <= ~buz_pwm;
+        end else
+            buz_pwm_cnt <= buz_pwm_cnt + 1'b1;
+    end
+
+    assign hcsr04_led = blink_on;
+    assign buzzer     = blink_on & buz_pwm;
+
+    // ─── ADXL345: X tilt = steering angle ─────────────────────────
+    wire [7:0] steer_angle;     // 0..90
+    wire       steer_sign;      // 0 = right, 1 = left
+
+    wire       adxl_ena, adxl_rw, adxl_stop, adxl_busy, adxl_ack_err;
+    wire [6:0] adxl_addr;
+    wire [7:0] adxl_data_wr, adxl_data_rd;
+
+    adxl345_top u_adxl345 (
+        .clk              (clk),
+        .rst_n            (rst_n),
+        .i2c_ena          (adxl_ena),
+        .i2c_addr         (adxl_addr),
+        .i2c_rw           (adxl_rw),
+        .i2c_data_wr      (adxl_data_wr),
+        .i2c_stop         (adxl_stop),
+        .i2c_busy         (adxl_busy),
+        .i2c_data_rd      (adxl_data_rd),
+        .i2c_ack_err      (adxl_ack_err),
+        .steer_dir        (),
+        .danger_threshold (),
+        .steer_angle      (steer_angle),
+        .steer_sign       (steer_sign),
+        .y_angle          (),
+        .y_sign           (),
+        .valid            (),
+        .accel_raw        ()
+    );
+
+    // ─── OLED: car outline, "!" per sensor, reverse guide lines ───
+    wire       oled_ena, oled_rw, oled_stop, oled_busy, oled_ack_err;
+    wire [6:0] oled_addr;
+    wire [7:0] oled_data_wr, oled_data_rd;
 
     ssd1306_oled u_oled (
         .clk              (clk),
         .rst_n            (rst_n),
-        .rear_left_alert  (rear_left_alert),
-        .rear_right_alert (rear_right_alert),
-        .side_left_alert  (side_left_alert),
-        .side_right_alert (side_right_alert),
+        .obstacle         (obstacle),
         .steer_angle      (steer_angle),
         .steer_sign       (steer_sign),
-        .oled_scl         (oled_scl),
-        .oled_sda         (oled_sda)
+        .m_ena            (oled_ena),
+        .m_addr           (oled_addr),
+        .m_rw             (oled_rw),
+        .m_data_wr        (oled_data_wr),
+        .m_stop           (oled_stop),
+        .m_busy           (oled_busy),
+        .m_data_rd        (oled_data_rd),
+        .m_ack_err        (oled_ack_err)
     );
 
-    // ─── Steer zone từ ADXL345 ───────────────────────────────────
-    localparam LEVEL_SAFE    = 2'd0;
-    localparam LEVEL_WARNING = 2'd1;
-    localparam LEVEL_DANGER  = 2'd2;
-
-    reg [1:0] steer_zone;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            steer_zone <= LEVEL_SAFE;
-        else if (dist_valid && !dist_timeout) begin
-            if (distance_cm < {9'd0, danger_threshold})
-                steer_zone <= LEVEL_DANGER;
-            else if (distance_cm < ({9'd0, danger_threshold} + 16'd30))
-                steer_zone <= LEVEL_WARNING;
-            else
-                steer_zone <= LEVEL_SAFE;
-        end else if (dist_timeout)
-            steer_zone <= LEVEL_SAFE;
-    end
-
-    // ─── Blink counters ───────────────────────────────────────────
-    localparam BLINK_SLOW = 25'd13_500_000;
-    localparam BLINK_FAST = 25'd2_700_000;
-
-    reg [24:0] slow_cnt, fast_cnt;
-    reg        blink_slow_tick, blink_fast_tick;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            slow_cnt <= 25'd0; 
-            blink_slow_tick <= 1'b0;
-        end else begin
-            blink_slow_tick <= 1'b0;
-            if (slow_cnt >= BLINK_SLOW - 1) begin
-                slow_cnt <= 25'd0; 
-                blink_slow_tick <= 1'b1;
-            end else 
-                slow_cnt <= slow_cnt + 1'b1;
-        end
-    end
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            fast_cnt <= 25'd0; 
-            blink_fast_tick <= 1'b0;
-        end else begin
-            blink_fast_tick <= 1'b0;
-            if (fast_cnt >= BLINK_FAST - 1) begin
-                fast_cnt <= 25'd0; 
-                blink_fast_tick <= 1'b1;
-            end else 
-                fast_cnt <= fast_cnt + 1'b1;
-        end
-    end
-
-    // ─── LED HC-SR04 ──────────────────────────────────────────────
-    reg led_state;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            led_state <= 1'b0;
-        else if (zone_changed)
-            led_state <= 1'b0;
-        else case (zone)
-            2'd0: led_state <= 1'b0;
-            2'd1: if (blink_slow_tick) led_state <= ~led_state;
-            2'd2: if (blink_fast_tick) led_state <= ~led_state;
-            2'd3: led_state <= 1'b1;
-            default: led_state <= 1'b0;
-        endcase
-    end
-
-    // ─── LED ADXL345 ──────────────────────────────────────────────
-    reg steer_led_state;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) 
-            steer_led_state <= 1'b0;
-        else case (steer_zone)
-            LEVEL_SAFE:    steer_led_state <= 1'b0;
-            LEVEL_WARNING: if (blink_slow_tick) steer_led_state <= ~steer_led_state;
-            LEVEL_DANGER:  if (blink_fast_tick) steer_led_state <= ~steer_led_state;
-            default:       steer_led_state <= 1'b0;
-        endcase
-    end
-
-    // ─── Buzzer PWM 2kHz ──────────────────────────────────────────
-    localparam BUZ_HALF = 14'd6750;
-    reg [13:0] buz_pwm_cnt;
-    reg        buz_pwm;
-    reg        buz_enable;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin 
-            buz_pwm_cnt <= 14'd0; 
-            buz_pwm     <= 1'b0; 
-        end else if (buz_pwm_cnt >= BUZ_HALF - 1) begin
-            buz_pwm_cnt <= 14'd0; 
-            buz_pwm     <= ~buz_pwm;
-        end else 
-            buz_pwm_cnt <= buz_pwm_cnt + 1'b1;
-    end
-
-    // ─── Buzzer enable ────────────────────────────────────────────
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            buz_enable <= 1'b0;
-        else if (zone_changed)
-            buz_enable <= 1'b0;
-        else case (zone)
-            2'd0: buz_enable <= 1'b0;
-            2'd1: if (blink_slow_tick) buz_enable <= ~buz_enable;
-            2'd2: if (blink_fast_tick) buz_enable <= ~buz_enable;
-            2'd3: buz_enable <= 1'b1;
-            default: buz_enable <= 1'b0;
-        endcase
-    end
-
-    assign ext_led   = led_state;
-    assign steer_led = steer_led_state;
-    assign buzzer    = buz_enable ? buz_pwm : 1'b0;
+    // ─── Shared I2C bus (ADXL345 priority) ────────────────────────
+    i2c_arbiter u_i2c_arb (
+        .clk        (clk),
+        .rst_n      (rst_n),
+        .p0_ena     (adxl_ena),
+        .p0_addr    (adxl_addr),
+        .p0_rw      (adxl_rw),
+        .p0_data_wr (adxl_data_wr),
+        .p0_stop    (adxl_stop),
+        .p0_busy    (adxl_busy),
+        .p0_data_rd (adxl_data_rd),
+        .p0_ack_err (adxl_ack_err),
+        .p1_ena     (oled_ena),
+        .p1_addr    (oled_addr),
+        .p1_rw      (oled_rw),
+        .p1_data_wr (oled_data_wr),
+        .p1_stop    (oled_stop),
+        .p1_busy    (oled_busy),
+        .p1_data_rd (oled_data_rd),
+        .p1_ack_err (oled_ack_err),
+        .scl        (scl),
+        .sda        (sda)
+    );
 
 endmodule

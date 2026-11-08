@@ -1,8 +1,9 @@
--d /home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/gwsynthesis/anti-collision_system.vg
+-d /home/trinh/projects/FPGA/anti_collision_fpga/impl/gwsynthesis/anti-collision_system.vg
 -p GW1NR-9C-QFN88P-6
 -pn GW1NR-LV9QN88PC6/I5
--cst /home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/src/constraint.cst
--cfg /home/ktrinh/Desktop/FPGA/TKHTS/anti-collision_system/impl/pnr/device.cfg
+-cst /home/trinh/projects/FPGA/anti_collision_fpga/src/constraint.cst
+-cfg /home/trinh/projects/FPGA/anti_collision_fpga/impl/pnr/device.cfg
+-sdc /home/trinh/projects/FPGA/anti_collision_fpga/src/timing.sdc
 -bit
 -tr
 -ph
@@ -10,6 +11,7 @@
 -cst_error
 -place_option 0
 -route_option 0
+-retiming_resource none
 -clock_route_order 0
 -correct_hold 1
 -route_maxfan 23
